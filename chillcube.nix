@@ -5,6 +5,7 @@
     godot_4          # The latest Godot 4 engine
     git              # Version control
     github-desktop   # github GUI version
+    gh               # github cli tool
     discord-ptb      # For communication
   ];
 
@@ -22,6 +23,15 @@
     "d /home/franz/Dev/Libraries 0755 franz users -"
     "d /home/franz/Dev/Projects 0755 franz users -"
    ];
+
+   # Ensure the Secret Service is available
+   services.gnome.gnome-keyring.enable = true;
+
+   # Add the specific GNOME portal
+   xdg.portal = {
+     enable = true;
+     extraPortals = [ pkgs.xdg-desktop-portal-gnome ];
+   };
 
   systemd.services.sync-chillcube = {
     description = "Pull the latest ChillCube library";
