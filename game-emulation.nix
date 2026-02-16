@@ -1,10 +1,62 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
-{
 
-  
+let
 
-  ############################
+  # Map platforms to their specific launch commands
+  platformMap = {
+    "snes"     = "bsnes";
+    "gba"      = "mgba";
+    "nes"      = "fceux";
+    "n64"      = "simple64";
+    "gc"       = "dolphin-emu -e";
+    "wii"      = "dolphin-emu -e";
+    "wiiu"     = "cemu -g";
+    "switch"   = "Ryujinx";
+    "nds"      = "melonDS";
+    "gb"       = "mgba";
+    "gbc"      = "mgba";
+  };
+
+  pegasusRules = map (p: "w+ /home/franz/.config/pegasus-frontend/game_dirs.txt - - - - /home/franz/Games/ROMs/${p}/.metadata\\n") platforms;
+  romDirRules = map (p: "d /home/franz/Games/ROMs/${p} 0755 franz users -") platforms;
+  metaPath = name: "/home/franz/Games/ROMs/{name}/.metadata/metadata.pegasus.txt";
+
+  # Define all your systems here once
+  platforms = builtins.attrNames platformMap;
+
+  # Helper to generate the bash 'case' statement logic
+  launchCase = lib.concatStringsSep "\n" (lib.mapAttrsToList (name: cmd: ''
+    "${name}") 
+      LAUNCH_CMD="${cmd} {file.path}" 
+      ;;''
+  ) platformMap);
+
+  scrapeScript = pkgs.writeScriptBin "scrape-games" ''
+    #!/bin/sh
+    PLATFORM=''${1}
+    ROM_DIR="$HOME/Games/ROMs/$PLATFORM"
+    OUT_DIR="$ROM_DIR/.metadata"
+
+    # Insert the case logic here to define LAUNCH_CMD
+    case "$PLATFORM" in
+      ${launchCase}
+      *)
+        LAUNCH_CMD="echo 'Unknown platform'; exit 1"
+        ;;
+    esac
+
+    mkdir -p "$OUT_DIR"
+    
+    echo "Fetching data for $PLATFORM from ScreenScraper..."
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s screenscraper -i "$ROM_DIR" -g "$OUT_DIR"
+
+    echo "Generating Pegasus metadata for $PLATFORM..."
+    # Note: We use ''$LAUNCH_CMD to tell Nix this is a bash variable, not Nix
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -i "$ROM_DIR" -o "$OUT_DIR" -g "$OUT_DIR" -e "$LAUNCH_CMD"
+  '';
+in {
+
   # Core Gaming Environment
   ############################
   programs.steam.enable = true;
@@ -12,39 +64,19 @@
 
   ############################
   # Emulation Frontend
-  ############################
+  ############################g from ES
   environment.systemPackages = with pkgs; [
     # Launcher
     pegasus-frontend
-
-    # Multi-system
-    retroarch
-    retroarch-assets
-    retroarch-joypad-autoconfig
-
-    # Sony
-    duckstation
-    pcsx2
-    ppsspp
-    rpcs3
-
     # Nintendo
-    dolphin-emu
-    cemu
-    ryubing
-    melonDS
-    desmume
-
-    # Sega
-    flycast
-
-    # Arcade / Classic
-    mame
-    scummvm
-    dosbox
-    vice
-    openmsx
-    fsuae
+    simple64     # N64
+    dolphin-emu  # GameCube/Wii
+    mgba         # GBA  pkgs-stable = import <nixos-stable> { 
+    fceux        # NES
+    bsnes-hd     # SNES
+    cemu         # Wii U
+    ryubing      # Switch
+    melonDS      # NDS
 
     # PC / Launchers
     steam
@@ -55,6 +87,9 @@
 
     skyscraper
     qt5.qtimageformats
+
+    scrapeScript
+
   ];
 
   ############################
@@ -62,7 +97,7 @@
   ############################
   environment.etc."retroarch/retroarch.cfg".text = ''
     menu_driver = "xmb"
-    savestate_auto_save = true
+    savestate_auto_save = tue
     savestate_auto_load = true
 
     # Achievements
@@ -91,6 +126,7 @@
   ############################
   # Optional: Desktop Auto-Launch
   ############################
+
   services.xserver.desktopManager.session = [
     {
       name = "pegasus";
@@ -101,34 +137,69 @@
   ];
 
 
-
-
-  # 2. Fix the "Unsupported image format" globally
+  # Fix the "Unsupported image format" globally
   environment.sessionVariables = {
     QT_PLUGIN_PATH = [ "${pkgs.qt5.qtimageformats}/${pkgs.qt5.qtbase.qtPluginPrefix}" ];
   };
-
   systemd.tmpfiles.rules = [
-    # 1. Create the ROM directory structure
-    # Format: type  path  mode  user  group  age  argument
+    # Base directories
     "d /home/franz/Games 0755 franz users -"
     "d /home/franz/Games/ROMs 0755 franz users -"
-    "d /home/franz/Games/ROMs/snes 0755 franz users -"
-    "d /home/franz/Games/ROMs/n64 0755 franz users -"
-    "d /home/franz/Games/ROMs/3Ds 0755 franz users -"
-    "d /home/franz/Games/ROMs/nds 0755 franz users -"
-    "d /home/franz/Games/ROMs/gba 0755 franz users -"
-    "d /home/franz/Games/ROMs/wii 0755 franz users -"
-    "d /home/franz/Games/ROMs/wii-u 0755 franz users-"
-    "d /home/franz/Games/ROMs/switch 0755 franz users-"
-    "d /home/franz/Games/ROMs/nes 0755 franz users-"
-    "d /home/franz/Games/ROMs/gamecube 0755 franz users-"
-
-    # Create the Pegasus config directory
     "d /home/franz/.config/pegasus-frontend 0755 franz users -"
 
-    # Create the game_dirs.txt pointing to your new folders
-    # The 'f' rule creates the file with the text in the last argument if it doesn't exist
-    "f /home/franz/.config/pegasus-frontend/game_dirs.txt 0644 franz users - /home/franz/Games/ROMs"
-  ];
+    # Pegasus config start (clears the file first)
+    "f+ /home/franz/.config/pegasus-frontend/game_dirs.txt 0644 franz users -"
+  ] 
+  ++ romDirRules 
+  ++ pegasusRules;
+
+  environment.etc."skyscraper/confd1a9dcig.ini".text = ''
+    [main]
+    frontend="pegasus"
+    unattended="true"
+  '';
+
+  systemd.user.services.pegasus-autoscrape = {
+    description = "Automatically scrape ROM metadata for Pegasus";
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+
+    serviceConfig = {
+      Type = "oneshot";
+      # Use the script variable and loop through the platform list
+      ExecStart = "${pkgs.writeShellScript "auto-scrape-task" ''
+        for sys in ${builtins.concatStringsSep " " platforms}; do
+          ${scrapeScript}/bin/scrape-games "$sys"
+        done
+      ''}";
+    };
+  };
+
+  systemd.user.timers.pegasus-autoscrape = {
+    description = "Run Pegasus autoscrape every day and 5 mins after boot";
+    timerConfig = {
+      OnBootSec = "5m";      # Run 5 minutes after you turn the PC on
+      OnUnitActiveSec = "1d"; # Run once every day thereafter
+    };
+    wantedBy = [ "timers.target" ];
+  };
+
+  environment.etc."skyscraper/artwork.xml".text = ''
+    <?xml version="1.0" encoding="UTF-8"?>
+    <artwork>
+      <output type="cover" width="600" height="800">
+        
+        <resource type="screenshot" width="600" height="450" x="0" y="0">
+          <round corners="10" />
+        </resource>
+
+        <resource type="cover" width="300" height="400" x="20" y="350" preserveRatio="true">
+          <shadow distance="5" opacity="50" />
+        </resource>
+
+        <resource type="wheel" width="250" height="150" x="330" y="475" preserveRatio="true" />
+      </output>
+    </artwork>
+  '' ;
+
 }

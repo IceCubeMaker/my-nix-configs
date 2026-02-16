@@ -1,6 +1,11 @@
 { config, lib, pkgs, ... }:
 
-{
+let
+  # This pulls the latest unstable nixpkgs
+  unstable = import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz") {
+    config = config.nixpkgs.config; # Ensures unfree settings carry over
+  };
+in {
 
     environment.systemPackages = with pkgs; [
 
@@ -12,9 +17,11 @@
     wget	    # CLI download tool
     git 	    # Git
     github-desktop  # Desktop version of Github
-    brightnessctl   # Brightness Controls
+    brightnessctl   # Bright --updateness Controls
     blueman 	    # For bluetooth
-
+    revolt-desktop  # Revolt / Stoat
+    nodejs_20       # NodeJS
+    fastfetch
     ];
 
     programs.firefox = {
@@ -23,6 +30,11 @@
           "widget.user-xdg-desktop-portal.file-picker" = 1;
        };
     };
+
+    programs.appimage.enable = true;
+    programs.appimage.binfmt = true;
+
+    services.dbus.enable = true;
 
     # enable bluetooth
     hardware.bluetooth.enable = true;
