@@ -5,17 +5,23 @@ let
 
   # Map platforms to their specific launch commands
   platformMap = {
-    "snes"     = "bsnes";
-    "gba"      = "mgba";
-    "nes"      = "fceux";
-    "n64"      = "simple64";
+    "snes"     = "retroarch -L /run/current-system/sw/lib/retroarch/cores/snes9x_libretro.so";
+    "gba"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/mgba_libretro.so";
+    "nes"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/nestopia_libretro.so";
+    "n64"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/parallel_n64_libretro.so";
     "gc"       = "dolphin-emu -e";
     "wii"      = "dolphin-emu -e";
     "wiiu"     = "cemu -g";
     "switch"   = "Ryujinx";
-    "nds"      = "melonDS";
-    "gb"       = "mgba";
-    "gbc"      = "mgba";
+    "gb"       = "retroarch -L /run/current-system/sw/lib/retroarch/cores/mgba_libretro.so";
+    "gbc"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/mgba_libretro.so";
+    "3ds"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/citra_libretro.so";
+    "gen"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/genesis_plus_gx_libretro.so";
+    "sat"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/yabause_libretro.so";
+    "psx"      = "retroarch -L/run/current-system/sw/lib/retroarch/cores/pcsx_rearmed_libretro.so";
+    "psp"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/ppsspp_libretro.so";
+    "nds"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/desmume_libretro.so";
+    "dos"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/dosbox_libretro.so";
   };
 
   pegasusRules = map (p: "w+ /home/franz/.config/pegasus-frontend/game_dirs.txt - - - - /home/franz/Games/ROMs/${p}/.metadata\\n") platforms;
@@ -28,7 +34,7 @@ let
   # Helper to generate the bash 'case' statement logic
   launchCase = lib.concatStringsSep "\n" (lib.mapAttrsToList (name: cmd: ''
     "${name}") 
-      LAUNCH_CMD="${cmd} {file.path}" 
+      LAUNCH_CMD="${cmd} '{file.path}'" 
       ;;''
   ) platformMap);
 
@@ -46,7 +52,7 @@ let
         ;;
     esac
 
-    mkdir -p "$OUT_DIR"
+    mkdir -p "$OUT_DIR"vice_libretr
     
     echo "Fetching data for $PLATFORM from ScreenScraper..."
     ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s screenscraper -i "$ROM_DIR" -g "$OUT_DIR"
@@ -64,19 +70,28 @@ in {
 
   ############################
   # Emulation Frontend
-  ############################g from ES
+  ############################g from ESretro.so
   environment.systemPackages = with pkgs; [
+
+    retroarch
+    libretro.mgba              # GBA, GB and GBC emulator
+    libretro.desmume           # DS emulation
+    libretro.parallel-n64      # N64
+    libretro.snes9x            # SNES 
+    libretro.nestopia          # NES
+    libretro.citra             # 3DS
+    libretro.pcsx_rearmed      # Playstation 1
+    libretro.ppsspp            # Playstation Portabl
+    libretro.genesis-plus-gx   # Gensis / Megadrive
+    libretro.picodrive         # Genesis, Sega CD, 32X
+    libretro.dosbox            # DOS
+
     # Launcher
     pegasus-frontend
     # Nintendo
-    simple64     # N64
     dolphin-emu  # GameCube/Wii
-    mgba         # GBA  pkgs-stable = import <nixos-stable> { 
-    fceux        # NES
-    bsnes-hd     # SNES
     cemu         # Wii U
     ryubing      # Switch
-    melonDS      # NDS
 
     # PC / Launchers
     steam
@@ -92,10 +107,14 @@ in {
 
   ];
 
+  services.joycond.enable = true; # joy con support
+
+
   ############################
   # RetroArch Configuration
   ############################
   environment.etc."retroarch/retroarch.cfg".text = ''
+
     menu_driver = "xmb"
     savestate_auto_save = tue
     savestate_auto_load = true
