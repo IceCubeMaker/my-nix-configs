@@ -18,7 +18,7 @@ let
     "3ds"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/citra_libretro.so";
     "gen"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/genesis_plus_gx_libretro.so";
     "sat"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/yabause_libretro.so";
-    "psx"      = "retroarch -L/run/current-system/sw/lib/retroarch/cores/pcsx_rearmed_libretro.so";
+    "psx"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/pcsx_rearmed_libretro.so";
     "psp"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/ppsspp_libretro.so";
     "nds"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/desmume_libretro.so";
     "dos"      = "retroarch -L /run/current-system/sw/lib/retroarch/cores/dosbox_libretro.so";
@@ -38,6 +38,10 @@ let
       ;;''
   ) platformMap);
 
+
+  #######################
+  #### SCRAPE SCRIPT ####
+  #######################
   scrapeScript = pkgs.writeScriptBin "scrape-games" ''
     #!/bin/sh
     PLATFORM=''${1}
@@ -55,12 +59,24 @@ let
     mkdir -p "$OUT_DIR"vice_libretr
     
     echo "Fetching data for $PLATFORM from ScreenScraper..."
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s screenscraper -i "$ROM_DIR" -g "$OUT_DIR"
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s screenscraper -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend
 
     echo "Generating Pegasus metadata for $PLATFORM..."
-    # Note: We use ''$LAUNCH_CMD to tell Nix this is a bash variable, not Nix
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -i "$ROM_DIR" -o "$OUT_DIR" -g "$OUT_DIR" -e "$LAUNCH_CMD"
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -i "$ROM_DIR" -o "$OUT_DIR" -g "$OUT_DIR" -e "$LAUNCH_CMD" --flags unattend
   '';
+  
+  ######################
+  ##### SCRAPE ALL #####
+  ######################
+  scrapeAllScript = pkgs.writeScriptBin "scrape-all-games" ''
+    #!/bin/sh
+    for sys in ${builtins.concatStringsSep " " platforms}; do
+      echo "--- Starting scrape for: $sys ---"
+      ${scrapeScript}/bin/scrape-games "$sys"
+    done
+    echo "--- All platforms finished! ---"
+  '';
+  
 in {
 
   # Core Gaming Environment
@@ -70,7 +86,7 @@ in {
 
   ############################
   # Emulation Frontend
-  ############################g from ESretro.so
+  ############################
   environment.systemPackages = with pkgs; [
 
     retroarch
@@ -100,10 +116,12 @@ in {
     # Multiplayer
     parsec-bin
 
-    skyscraper
     qt5.qtimageformats
-
+    
+    # Scraping Games
+    skyscraper
     scrapeScript
+    scrapeAllScript
 
   ];
 

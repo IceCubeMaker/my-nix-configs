@@ -26,6 +26,11 @@
 
    # Ensure the Secret Service is available
    services.gnome.gnome-keyring.enable = true;
+   
+   # to make sure godot can load the asset library
+   environment.sessionVariables = {
+      SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt";
+   };
 
    # Add the specific GNOME portal
    xdg.portal = {
