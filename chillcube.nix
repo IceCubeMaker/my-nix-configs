@@ -7,6 +7,7 @@
     github-desktop   # github GUI version
     gh               # github cli tool
     discord-ptb      # For communication
+    krita            # For making art
   ];
 
   # Godot benefits from pipewire for low-latency audio during testing

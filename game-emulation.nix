@@ -48,6 +48,16 @@ let
   ) platformMap);
 
 
+  ######################
+  ### PEGASUS THEME ####
+  ######################
+  flixnet-plus = pkgs.fetchFromGitHub {
+    owner = "ZagonAb";
+    repo = "FlixNet_Plus";
+    rev = "master"; # Or a specific commit hash for stability
+    sha256 = "sha256-SzlwnuUSB5wGD7ySlFOEXtQgHeeNYwhOsoGR5DPElKg=";
+  };
+
   #######################
   #### SCRAPE SCRIPT ####
   #######################
@@ -68,19 +78,18 @@ let
     mkdir -p "$OUT_DIR"
     
     echo "Fetching data for $PLATFORM from ScreenScraper..."
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s igdb -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s screenscraper -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,onlymissing
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s tgdb -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,onlymissing
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s mobygames -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,onlymissing
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s openretro -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,onlymissing
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s arcadedb -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,onlymissing
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s zxinfo -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,onlymissing
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s gamebase -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,onlymissing
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s esgamelist -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,onlymissing
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s igdb -i "$ROM_DIR" -g -u ln7z9k4gijlphu5uobl0byb151k71q:coz30q4oyce5u1kpqrd6kxjxpxuvvq "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s tgdb -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s mobygames -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s openretro -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s arcadedb -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s zxinfo -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s gamebase -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s esgamelist -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s screenscraper -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
 
     echo "Generating Pegasus metadata for $PLATFORM..."
     ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -i "$ROM_DIR" -o "$OUT_DIR" -g "$OUT_DIR" -e "$LAUNCH_CMD" --flags unattend
-    
   '';
   
   ######################
@@ -143,6 +152,7 @@ in {
     qt5.qtimageformats
     
     # Scraping Games
+    imagemagick
     skyscraper
     scrapeScript
     scrapeAllScript
@@ -202,14 +212,22 @@ in {
   environment.sessionVariables = {
     QT_PLUGIN_PATH = [ "${pkgs.qt5.qtimageformats}/${pkgs.qt5.qtbase.qtPluginPrefix}" ];
   };
+  
+  environment.etc."pegasus-settings".text = ''
+    theme: FlixNet_Plus
+  '';
+  
   systemd.tmpfiles.rules = [
     # Base directories
     "d /home/franz/Games 0755 franz users -"
     "d /home/franz/Games/ROMs 0755 franz users -"
     "d /home/franz/.config/pegasus-frontend 0755 franz users -"
 
-    # Pegasus config start (clears the file first)
+    # Pegasus configurations
     "f+ /home/franz/.config/pegasus-frontend/game_dirs.txt 0644 franz users -"
+    "d /home/franz/.config/pegasus-frontend/themes 0755 franz users -"
+    "L+ /home/franz/.config/pegasus-frontend/themes/FlixNet_Plus - - - - ${flixnet-plus}"
+    "L+ /home/franz/.config/pegasus-frontend/settings.txt 0644 franz users - /etc/pegasus-settings"
   ] 
   ++ romDirRules 
   ++ pegasusRules;
@@ -238,23 +256,5 @@ in {
     };
     wantedBy = [ "timers.target" ];
   };
-
-  environment.etc."skyscraper/artwork.xml".text = ''
-    <?xml version="1.0" encoding="UTF-8"?>
-    <artwork>
-      <output type="cover" width="600" height="800">
-        
-        <resource type="screenshot" width="600" height="450" x="0" y="0">
-          <round corners="10" />
-        </resource>
-
-        <resource type="cover" width="300" height="400" x="20" y="350" preserveRatio="true">
-          <shadow distance="5" opacity="50" />
-        </resource>
-
-        <resource type="wheel" width="250" height="150" x="330" y="475" preserveRatio="true" />
-      </output>
-    </artwork>
-  '' ;
 
 }
