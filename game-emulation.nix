@@ -30,7 +30,7 @@ let
     "dreamcast"        = "retroarch -L /run/current-system/sw/lib/retroarch/cores/flycast_libretro.so";
     "atari2600"        = "retroarch -L /run/current-system/sw/lib/retroarch/cores/stella_libretro.so";
     "pcengine"         = "retroarch -L /run/current-system/sw/lib/retroarch/cores/beetle_pce_fast_libretro.so";
-    "mastersystem"     = "retroarch -L /run/current-system/sw/lib/retroarch/cores/genesis_plus_gx_libretro.so";
+    "mastersystem"     = "retroarch -L /run/cusha256-lV4xHff0ARRRyB66xNY/adoHhPsQVJ6u49bftt1PuuA=rrent-system/sw/lib/retroarch/cores/genesis_plus_gx_libretro.so";
   };
 
   pegasusRules = map (p: "w+ /home/franz/.config/pegasus-frontend/game_dirs.txt - - - - /home/franz/Games/ROMs/${p}/.metadata\\n") platforms;
@@ -58,12 +58,35 @@ let
     sha256 = "sha256-SzlwnuUSB5wGD7ySlFOEXtQgHeeNYwhOsoGR5DPElKg=";
   };
 
+  game-os = pkgs.fetchFromGitHub {
+    owner = "PlayingKarrde";
+    repo = "gameOS";
+    rev = "master"; 
+    sha256 = "sha256-EBpIe0aw1FO7DzB6F3oAWD5FRLF2iZGtOHllMxuamdc=";
+  };
+
+  neoretro = pkgs.fetchFromGitHub {
+    owner = "valsou";
+    repo = "neoretro";
+    rev = "master"; 
+    sha256 = "sha256-HYL5bHvcoNrU7kFjGR7c7tc2WYKlwStiw+iBa2zHgc8=";
+  };
+
+  shin-retro = pkgs.fetchFromGitHub {
+    owner = "TigraTT-Driver";
+    repo = "shinretro";
+    rev = "master";
+    sha256 = "sha256-lV4xHff0ARRRyB66xNY/adoHhPsQVJ6u49bftt1PuuA=";
+  };
+
   #######################
   #### SCRAPE SCRIPT ####
   #######################
   scrapeScript = pkgs.writeScriptBin "scrape-games" ''
     #!/bin/sh
     PLATFORM=''${1}
+    shift
+    EXTRA_FLAGS="$@"
     ROM_DIR="$HOME/Games/ROMs/$PLATFORM"
     OUT_DIR="$ROM_DIR/.metadata"
 
@@ -78,18 +101,10 @@ let
     mkdir -p "$OUT_DIR"
     
     echo "Fetching data for $PLATFORM from ScreenScraper..."
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s igdb -i "$ROM_DIR" -g -u ln7z9k4gijlphu5uobl0byb151k71q:coz30q4oyce5u1kpqrd6kxjxpxuvvq "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s tgdb -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s mobygames -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s openretro -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s arcadedb -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s zxinfo -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s gamebase -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s esgamelist -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s screenscraper -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,skipexistingcovers,skipexistingmarquees,skipexistingscreenshots,skipexistingvideos,skipexistingwheels
-
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s screenscraper -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,manuals,fanart,nobrackets,theinfront $EXTRA_FLAGS
+ 
     echo "Generating Pegasus metadata for $PLATFORM..."
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -i "$ROM_DIR" -o "$OUT_DIR" -g "$OUT_DIR" -e "$LAUNCH_CMD" --flags unattend
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -i "$ROM_DIR" -o "$OUT_DIR" -g "$OUT_DIR" -e "$LAUNCH_CMD" --flags unattend,videos,manuals,fanart,nobrackets,theinfront $EXTRA_FLAGS
   '';
   
   ######################
@@ -97,9 +112,10 @@ let
   ######################
   scrapeAllScript = pkgs.writeScriptBin "scrape-all-games" ''
     #!/bin/sh
+    EXTRA_FLAGS="$@"
     for sys in ${builtins.concatStringsSep " " platforms}; do
       echo "--- Starting scrape for: $sys ---"
-      ${scrapeScript}/bin/scrape-games "$sys"
+      ${scrapeScript}/bin/scrape-games "$sys" $EXTRA_FLAGS
     done
     echo "--- All platforms finished! ---"
   '';
@@ -126,7 +142,7 @@ in {
     libretro.pcsx_rearmed      # Playstation 1
     libretro.ppsspp            # Playstation Portabl
     libretro.genesis-plus-gx   # Gensis / Megadrive, Master System
-    libretro.picodrive         # Genesis, Sega CD, 32X
+    libretro.picodrive         # Genesis, Sega CD, 32Xist
     libretro.dosbox            # DOS
     libretro.fbneo             # Neo Geo
     libretro.mame              # Arcade (MAME)
@@ -157,7 +173,20 @@ in {
     scrapeScript
     scrapeAllScript
 
+    # Video for pegasus launcher
+    gst_all_1.gstreamer
+    gst_all_1.gst-plugins-base
+    gst_all_1.gst-plugins-good
+    gst_all_1.gst-plugins-ugly
+    gst_all_1.gst-plugins-bad
+    gst_all_1.gst-libav
   ];
+
+  environment.variables.GST_PLUGIN_SYSTEM_PATH_1_0 = "/run/current-system/sw/lib/gstreamer-1.0";
+  environment.variables.GST_PLUGIN_PATH_1_0 = "/run/current-system/sw/lib/gstreamer-1.0/";
+  environment.variables = {
+    QT_QPA_PLATFORM = "xcb"; # Forces Pegasus to use X11/XWayland
+  };
 
   services.joycond.enable = true; # joy con support
 
@@ -182,21 +211,17 @@ in {
     netplay_nat_traversal = true
   '';
 
-  ############################
+  ############################ist
   # Controller Support
   ############################
   services.udev.packages = with pkgs; [
-    game-devices-udev-rules
+    # game-devices-udev-rules= "sha256-xp62i6iSjOq5p/uQe+tNNoS3vF5pB/pPshXo6I0X2+Q="; # Note: You may need to update
   ];
 
   ############################
   # Audio / Video Latency
   ############################
   hardware.graphics.enable = true;
-
-  ############################
-  # Optional: Desktop Auto-Launch
-  ############################
 
   services.xserver.desktopManager.session = [
     {
@@ -213,12 +238,15 @@ in {
     QT_PLUGIN_PATH = [ "${pkgs.qt5.qtimageformats}/${pkgs.qt5.qtbase.qtPluginPrefix}" ];
   };
   
-  environment.etc."pegasus-settings".text = ''
-    theme: FlixNet_Plus
+  environment.etc."skyscraper/artwork.xml".text = ''
+    <?xml version="1.0" encoding="UTF-8"?>
+    <artwork>
+      <output type="cover" resource="cover"/>
+      <output type="wheel" resource="wheel"/>
+    </artwork>
   '';
-  
+
   systemd.tmpfiles.rules = [
-    # Base directories
     "d /home/franz/Games 0755 franz users -"
     "d /home/franz/Games/ROMs 0755 franz users -"
     "d /home/franz/.config/pegasus-frontend 0755 franz users -"
@@ -227,7 +255,12 @@ in {
     "f+ /home/franz/.config/pegasus-frontend/game_dirs.txt 0644 franz users -"
     "d /home/franz/.config/pegasus-frontend/themes 0755 franz users -"
     "L+ /home/franz/.config/pegasus-frontend/themes/FlixNet_Plus - - - - ${flixnet-plus}"
-    "L+ /home/franz/.config/pegasus-frontend/settings.txt 0644 franz users - /etc/pegasus-settings"
+    "L+ /home/franz/.config/pegasus-frontend/themes/GameOS - - - - ${game-os}"
+    "L+ /home/franz/.config/pegasus-frontend/themes/NeoRetro - - - - ${neoretro}"
+    "L+ /home/franz/.config/pegasus-frontend/themes/ShinRetro - - - - ${shin-retro}"
+
+    # Skyscraper configurations
+    "L+ /home/franz/.skyscraper/artwork.xml 0644 franz users - /etc/skyscraper/artwork.xml"
   ] 
   ++ romDirRules 
   ++ pegasusRules;
