@@ -30,15 +30,21 @@ let
     "dreamcast"        = "retroarch -L /run/current-system/sw/lib/retroarch/cores/flycast_libretro.so";
     "atari2600"        = "retroarch -L /run/current-system/sw/lib/retroarch/cores/stella_libretro.so";
     "pcengine"         = "retroarch -L /run/current-system/sw/lib/retroarch/cores/beetle_pce_fast_libretro.so";
-    "mastersystem"     = "retroarch -L /run/cusha256-lV4xHff0ARRRyB66xNY/adoHhPsQVJ6u49bftt1PuuA=rrent-system/sw/lib/retroarch/cores/genesis_plus_gx_libretro.so";
+    "mastersystem"     = "retroarch -L /run/current-system/sw/lib/retroarch/cores/genesis_plus_gx_libretro.so";
+    "steam"            = "steam -silent steam://rungameid/";
   };
-
-  pegasusRules = map (p: "w+ /home/franz/.config/pegasus-frontend/game_dirs.txt - - - - /home/franz/Games/ROMs/${p}/.metadata\\n") platforms;
-  romDirRules = map (p: "d /home/franz/Games/ROMs/${p} 0755 franz users -") platforms;
-  metaPath = name: "/home/franz/Games/ROMs/{name}/.metadata/metadata.pegasus.txt";
-
+  
   # Define all your systems here once
   platforms = builtins.attrNames platformMap;
+  
+  romDirRules = map (p: 
+    if p == "steam" then "d /home/franz/Games/ROMs/.steam 0755 franz users -"
+    else "d /home/franz/Games/ROMs/${p} 0755 franz users -"
+  ) platforms;
+  pegasusRules = map (p: 
+    if p == "steam" then "w+ /home/franz/.config/pegasus-frontend/game_dirs.txt - - - - /home/franz/Games/ROMs/.steam/.metadata\\n"
+    else "w+ /home/franz/.config/pegasus-frontend/game_dirs.txt - - - - /home/franz/Games/ROMs/${p}/.metadata\\n"
+  ) platforms;
 
   # Helper to generate the bash 'case' statement logic
   launchCase = lib.concatStringsSep "\n" (lib.mapAttrsToList (name: cmd: ''
@@ -51,33 +57,54 @@ let
   ######################
   ### PEGASUS THEME ####
   ######################
-  flixnet-plus = pkgs.fetchFromGitHub {
-    owner = "ZagonAb";
-    repo = "FlixNet_Plus";
-    rev = "master"; # Or a specific commit hash for stability
-    sha256 = "sha256-SzlwnuUSB5wGD7ySlFOEXtQgHeeNYwhOsoGR5DPElKg=";
-  };
+  #flixnet-plus = pkgs.fetchFromGitHub {
+  #  owner = "ZagonAb";
+  #  repo = "FlixNet_Plus";
+  #  rev = "master"; # Or a specific commit hash for stability
+  #  sha256 = "sha256-SzlwnuUSB5wGD7ySlFOEXtQgHeeNYwhOsoGR5DPElKg=";
+  #};
 
-  game-os = pkgs.fetchFromGitHub {
-    owner = "PlayingKarrde";
-    repo = "gameOS";
-    rev = "master"; 
-    sha256 = "sha256-EBpIe0aw1FO7DzB6F3oAWD5FRLF2iZGtOHllMxuamdc=";
-  };
+  #game-os = pkgs.fetchFromGitHub {
+  #  owner = "PlayingKarrde";
+  #  repo = "gameOS";
+  #  rev = "master"; 
+  #  sha256 = "sha256-EBpIe0aw1FO7DzB6F3oAWD5FRLF2iZGtOHllMxuamdc=";
+  #};
 
-  neoretro = pkgs.fetchFromGitHub {
-    owner = "valsou";
-    repo = "neoretro";
-    rev = "master"; 
-    sha256 = "sha256-HYL5bHvcoNrU7kFjGR7c7tc2WYKlwStiw+iBa2zHgc8=";
-  };
+  #neoretro = pkgs.fetchFromGitHub {
+  #  owner = "valsou";
+  #  repo = "neoretro";
+  #  rev = "master"; 
+  #  sha256 = "sha256-HYL5bHvcoNrU7kFjGR7c7tc2WYKlwStiw+iBa2zHgc8=";
+  #};
 
-  shin-retro = pkgs.fetchFromGitHub {
-    owner = "TigraTT-Driver";
-    repo = "shinretro";
+  #shin-retro = pkgs.fetchFromGitHub {
+  #  owner = "TigraTT-Driver";
+  #  repo = "shinretro";
+  #  rev = "master";
+  #  sha256 = "sha256-lV4xHff0ARRRyB66xNY/adoHhPsQVJ6u49bftt1PuuA=";
+  #};
+
+  minimis = pkgs.fetchFromGitHub {
+    owner = "waldnercharles";
+    repo = "Minimis";
     rev = "master";
-    sha256 = "sha256-lV4xHff0ARRRyB66xNY/adoHhPsQVJ6u49bftt1PuuA=";
+    sha256 = "sha256-vi+BoNZWsnWDXF8j1uKSERrEAdYsfi9X1nSN9OYI5lA=";
   };
+
+  #homage = pkgs.fetchFromGitHub {
+  #  owner = "asdfgasfhsn";
+  #  repo = "pegasus-theme-homage";
+  #  rev = "master";
+  #  sha256 = "sha256-G5wOFfhLBw+os49ZzDwnY0+tD1lYPp/R0mDVloVUFEw=";
+  #};
+
+  #vapour = pkgs.fetchFromGitHub {
+  #  owner = "ZagonAb";
+  #  repo = "Vapour-Pegasus";
+  #  rev = "master";
+  #  sha256 = "sha256-7AZD3w7SyLqG3qmaT9gowPe9TVHSilnXRT6sDr7IMgM=";
+  #};
 
   #######################
   #### SCRAPE SCRIPT ####
@@ -87,24 +114,65 @@ let
     PLATFORM=''${1}
     shift
     EXTRA_FLAGS="$@"
-    ROM_DIR="$HOME/Games/ROMs/$PLATFORM"
+    
+    # Unified path logic at the start
+    if [ "$PLATFORM" = "steam" ]; then
+      echo "Refreshing Steam ghost files..."
+      ${steam-ghost-gen}/bin/steam-ghost-gen
+      ROM_DIR="$HOME/Games/ROMs/.steam"
+    else
+      ROM_DIR="$HOME/Games/ROMs/$PLATFORM"
+    fi
+    
+    SOURCE="screenscraper"
     OUT_DIR="$ROM_DIR/.metadata"
 
-    # Insert the case logic here to define LAUNCH_CMD
     case "$PLATFORM" in
       ${launchCase}
-      *)
-        LAUNCH_CMD="echo 'Unknown platform'; exit 1"
-        ;;
+      *) LAUNCH_CMD="echo 'Unknown platform'; exit 1" ;;
     esac
 
     mkdir -p "$OUT_DIR"
     
-    echo "Fetching data for $PLATFORM from ScreenScraper..."
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -s screenscraper -i "$ROM_DIR" -g "$OUT_DIR" --flags unattend,videos,manuals,fanart,nobrackets,theinfront $EXTRA_FLAGS
- 
-    echo "Generating Pegasus metadata for $PLATFORM..."
-    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -i "$ROM_DIR" -o "$OUT_DIR" -g "$OUT_DIR" -e "$LAUNCH_CMD" --flags unattend,videos,manuals,fanart,nobrackets,theinfront $EXTRA_FLAGS
+    # --- PHASE 1: GATHERING (The "Fetch" step) ---
+    # We run this first to ensure the local database (~/.skyscraper/db) is full.
+    # This does not generate any files; it only downloads the raw data.
+    echo "Gathering data into local cache..."
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" \
+      -s "$SOURCE" \
+      -i "$ROM_DIR" \
+      -u IceCubeMaker:Pokemon \
+      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers \
+      $EXTRA_FLAGS
+      
+    # Check if the platform is steam to use the hidden directory
+    if [ "$PLATFORM" = "steam" ]; then
+      ROM_DIR="$HOME/Games/ROMs/.steam"
+    else
+      ROM_DIR="$HOME/Games/ROMs/$PLATFORM"
+    fi
+    
+    
+
+    # --- PHASE 2: GENERATING (The "Export" step) ---
+    # We keep your -e flag exactly as you have it.
+    # Added -a to point to your darkened artwork rules.
+    echo "Exporting metadata and applying artwork styles..."
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" \
+      -f pegasus \
+      -i "$ROM_DIR" \
+      -g "$OUT_DIR" \
+      -o "$OUT_DIR" \
+      -a /etc/skyscraper/artwork.xml \
+      -e "$LAUNCH_CMD" \
+      -u IceCubeMaker:Pokemon \
+      --flags unattend,symlink,videos,manuals,fanarts,nobrackets,theinfront,backcovers \
+      $EXTRA_FLAGS
+      
+      # PHASE 3: POST-PROCESS (Only for DS/3DS)
+      if [ "$PLATFORM" = "nds" ] || [ "$PLATFORM" = "3ds" ]; then
+        ${ds-resizer} "$OUT_DIR"
+      fi
   '';
   
   ######################
@@ -120,6 +188,71 @@ let
     echo "--- All platforms finished! ---"
   '';
   
+  # Helper script for DS media
+  ds-resizer = pkgs.writeScript "ds-resizer" ''
+    #!/bin/sh
+    TARGET_DIR="$1"
+    echo "Checking for DS/3DS media in $TARGET_DIR..."
+
+    # 1. FIX SCREENSHOTS (Vertical Stack -> Side-by-Side)
+    if [ -d "$TARGET_DIR/screenshot" ]; then
+      for img in "$TARGET_DIR/screenshot"/*.png; do
+        [ -e "$img" ] || continue
+        dim=$(${pkgs.imagemagick}/bin/identify -format "%w %h" "$img")
+        w=$(echo $dim | cut -d' ' -f1)
+        h=$(echo $dim | cut -d' ' -f2)
+
+        if [ "$h" -gt "$w" ]; then
+          echo "Converting screenshot to side-by-side: $img"
+          ${pkgs.imagemagick}/bin/magick "$img" -crop 1x2@ +append "$img"
+        fi
+      done
+    fi
+    if [ "$PLATFORM" = "nds" ] ; then
+      # 2. FIX VIDEOS (Top Screen Only)
+      if [ -d "$TARGET_DIR/video" ]; then
+        for vid in "$TARGET_DIR/video"/*.mp4; do
+          [ -e "$vid" ] || continue
+          h=$(${pkgs.ffmpeg}/bin/ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=s=x:p=0 "$vid")
+          
+          if [ "$h" -gt 300 ]; then
+            echo "Cropping video to top screen: $vid"
+            ${pkgs.ffmpeg}/bin/ffmpeg -i "$vid" -filter:v "crop=iw:ih/2:0:0" -c:v libx264 -crf 20 -c:a copy -y "$vid.tmp.mp4" && mv "$vid.tmp.mp4" "$vid"
+          fi
+        done
+      fi
+    fi
+  '';
+  
+  ####################
+  ## STEAM SUPPORT ###
+  ####################
+  # Change this in your 'let' block
+  steam-ghost-gen = pkgs.writeScriptBin "steam-ghost-gen" ''
+  #!/bin/sh
+  DEST="$HOME/Games/ROMs/.steam"
+  mkdir -p "$DEST"
+
+  VDF_FILE="$HOME/.local/share/Steam/steamapps/libraryfolders.vdf"
+
+  if [ -f "$VDF_FILE" ]; then
+    echo "Found Steam library configuration. Scanning all drives..."
+    LIB_PATHS=$(grep "path" "$VDF_FILE" | sed 's/.*"path"[[:space:]]*"\(.*\)"/\1/')
+
+    for LIB in $LIB_PATHS; do
+      APPS_DIR="$LIB/steamapps"
+      if [ -d "$APPS_DIR" ]; then
+        echo "Scanning library: $APPS_DIR"
+        ls "$APPS_DIR"/appmanifest_*.acf 2>/dev/null | xargs -n1 basename 2>/dev/null | \
+        sed 's/appmanifest_\([0-9]*\)\.acf/\1.txt/' | \
+        xargs -I{} touch "$DEST/{}"
+      fi
+    done
+    echo "Steam ghost files updated in $DEST"
+  else
+    echo "Could not find libraryfolders.vdf at $VDF_FILE"
+  fi
+'';
 in {
 
   # Core Gaming Environment
@@ -158,10 +291,6 @@ in {
     cemu         # Wii U
     ryubing      # Switch
 
-    # PC / Launchers
-    steam
-    lutris
-
     # Multiplayer
     parsec-bin
 
@@ -180,6 +309,10 @@ in {
     gst_all_1.gst-plugins-ugly
     gst_all_1.gst-plugins-bad
     gst_all_1.gst-libav
+    
+    # Steam setup
+    steam
+    steam-ghost-gen
   ];
 
   environment.variables.GST_PLUGIN_SYSTEM_PATH_1_0 = "/run/current-system/sw/lib/gstreamer-1.0";
@@ -217,6 +350,7 @@ in {
   services.udev.packages = with pkgs; [
     # game-devices-udev-rules= "sha256-xp62i6iSjOq5p/uQe+tNNoS3vF5pB/pPshXo6I0X2+Q="; # Note: You may need to update
   ];
+  
 
   ############################
   # Audio / Video Latency
@@ -238,13 +372,34 @@ in {
     QT_PLUGIN_PATH = [ "${pkgs.qt5.qtimageformats}/${pkgs.qt5.qtbase.qtPluginPrefix}" ];
   };
   
-  environment.etc."skyscraper/artwork.xml".text = ''
-    <?xml version="1.0" encoding="UTF-8"?>
-    <artwork>
-      <output type="cover" resource="cover"/>
-      <output type="wheel" resource="wheel"/>
-    </artwork>
-  '';
+environment.etc."skyscraper/artwork.xml".text = ''<?xml version="1.0" encoding="UTF-8"?>
+<artwork>
+  <output type="cover" resource="cover"/>
+  
+  <output type="boxBack" resource="backcover">
+    <draw type="backcover"/>
+  </output>
+
+  <output type="background" resource="fanart">
+    <draw type="fanart">
+      <brightness>-40</brightness>
+      <gamma>1.3</gamma>
+    </draw>
+  </output>
+
+  <output type="screenshot" resource="screenshot">
+    <draw type="screenshot"><brightness>-30</brightness><gamma>1.2</gamma></draw>
+  </output>
+
+  <output type="wheel" resource="wheel"/>
+  <output type="marquee" resource="marquee"/>
+  <output type="banner" resource="banner"/>
+
+  <output type="cartridge" resource="cartridge">
+    <draw type="cartridge"><origin x="0.5" y="0.5"/><pos x="0.5" y="0.5"/></draw>
+    <draw type="cover" cache="false" x="0.1" y="0.1" width="0.8" height="0.8"/>
+  </output>
+</artwork>'';
 
   systemd.tmpfiles.rules = [
     "d /home/franz/Games 0755 franz users -"
@@ -254,10 +409,12 @@ in {
     # Pegasus configurations
     "f+ /home/franz/.config/pegasus-frontend/game_dirs.txt 0644 franz users -"
     "d /home/franz/.config/pegasus-frontend/themes 0755 franz users -"
-    "L+ /home/franz/.config/pegasus-frontend/themes/FlixNet_Plus - - - - ${flixnet-plus}"
-    "L+ /home/franz/.config/pegasus-frontend/themes/GameOS - - - - ${game-os}"
-    "L+ /home/franz/.config/pegasus-frontend/themes/NeoRetro - - - - ${neoretro}"
-    "L+ /home/franz/.config/pegasus-frontend/themes/ShinRetro - - - - ${shin-retro}"
+    # "L+ /home/franz/.config/pegasus-frontend/themes/FlixNet_Plus - - - - ${flixnet-plus}"
+    # "L+ /home/franz/.config/pegasus-frontend/themes/GameOS - - - - ${game-os}"
+    # "L+ /home/franz/.config/pegasus-frontend/themes/NeoRetro - - - - ${neoretro}"
+    # "L+ /home/franz/.config/pegasus-frontend/themes/ShinRetro - - - - ${shin-retro}"
+    "L+ /home/franz/.config/pegasus-frontend/themes/Minimis - - - - ${minimis}"
+
 
     # Skyscraper configurations
     "L+ /home/franz/.skyscraper/artwork.xml 0644 franz users - /etc/skyscraper/artwork.xml"
