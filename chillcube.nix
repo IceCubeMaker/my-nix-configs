@@ -1,6 +1,10 @@
 { config, pkgs, ... }:
 
 {
+
+  globals = import ./globals.nix;
+  user = globals.user;
+
   environment.systemPackages = with pkgs; [
     godot_4          # The latest Godot 4 engine
     git              # Version control
@@ -20,9 +24,9 @@
 
   # This ensures your dev folder is ready the moment you log in
   systemd.tmpfiles.rules = [
-    "d /home/franz/Dev 0755 franz users -"
-    "d /home/franz/Dev/Libraries 0755 franz users -"
-    "d /home/franz/Dev/Projects 0755 franz users -"
+    "d /home/${user}/Dev 0755 ${user} users -"
+    "d /home/${user}/Dev/Libraries 0755 ${user} users -"
+    "d /home/${user}/Dev/Projects 0755 ${user} users -"
    ];
 
    # Ensure the Secret Service is available
@@ -47,9 +51,9 @@
 
     serviceConfig = {
       Type = "oneshot";
-      User = "franz";
+      User = " ${user}";
       Group = "users";
-      # This is the magic line: it tells systemd to allow full access to /home/franz
+      # This is the magic line: it tells systemd to allow full access to /home/user
       ProtectHome = false;
       # Ensures the script has a basic environment
       Environment = "PATH=${pkgs.git}/bin:${pkgs.coreutils}/bin";
@@ -58,8 +62,8 @@
     
     script = ''
       # Ensure the path exists manually just in case
-      mkdir -p /home/franz/Dev/Libraries/ChillCube
-      DEST="/home/franz/Dev/Libraries/ChillCube"
+      mkdir -p /home/${user}/Dev/Libraries/ChillCube
+      DEST="/home/${user}/Dev/Libraries/ChillCube"
       
       if [ ! -d "$DEST/.git" ]; then
         rm -rf "$DEST"

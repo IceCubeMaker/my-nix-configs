@@ -477,6 +477,9 @@ button {
 
 in {
 
+  globals = import ./globals.nix;
+  user = globals.user;
+
   environment.systemPackages = with pkgs; [
     swww               # wallpaper manager
     xwayland-satellite
@@ -515,13 +518,13 @@ in {
   ];
 
   systemd.tmpfiles.rules = [
-    "d /home/franz/.config/niri 0755 franz users - -"
-    "L+ /home/franz/.config/niri/config.kdl - - - - ${niriConfig}"
-    "d /home/franz/.config/waybar 0755 franz users - -"
-    "L+ /home/franz/.config/waybar/config.jsonc - - - - ${waybarConfig}"
-    "L+ /home/franz/.config/waybar/style.css - - - - ${waybarCSS}"
-    "d /home/franz/wallpapers 0755 franz users - -"
-    "L+ /home/franz/wallpapers/wallpaper.png - - - - ${Wallpaper}"
+    "d /home/${user}/.config/niri 0755 ${user} users - -"
+    "L+ /home/${user}/.config/niri/config.kdl - - - - ${niriConfig}"
+    "d /home/${user}/.config/waybar 0755 ${user} users - -"
+    "L+ /home/${user}/.config/waybar/config.jsonc - - - - ${waybarConfig}"
+    "L+ /home/${user}/.config/waybar/style.css - - - - ${waybarCSS}"
+    "d /home/${user}/wallpapers 0755 ${user} users - -"
+    "L+ /home/${user}/wallpapers/wallpaper.png - - - - ${Wallpaper}"
   ];
 
 
@@ -531,7 +534,7 @@ in {
     wantedBy = [ "graphical-session.target" ];
     serviceConfig = {
       Type = "oneshot";
-      ExecStart = "${pkgs.swww}/bin/swww img /home/franz/wallpapers/wallpaper.png";
+      ExecStart = "${pkgs.swww}/bin/swww img /home/${user}/wallpapers/wallpaper.png";
       Restart = "on-failure";
       RestartSec = 1;
     };

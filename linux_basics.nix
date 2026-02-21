@@ -22,6 +22,7 @@ in {
     revolt-desktop  # Revolt / Stoat
     nodejs_20       # NodeJS
     fastfetch
+    pavucontrol
     ];
 
     programs.firefox = {
