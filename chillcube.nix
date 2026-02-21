@@ -12,6 +12,7 @@
     gh               # github cli tool
     discord-ptb      # For communication
     krita            # For making art
+    aseprite         # For making pixel art
   ];
 
   # Godot benefits from pipewire for low-latency audio during testing
