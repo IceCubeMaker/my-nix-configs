@@ -100,6 +100,18 @@ let
     mkdir -p "$OUT_DIR"
     
     # PHASE 1: GATHER
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s gamebase -i "$ROM_DIR" \
+      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s arcadedb -i "$ROM_DIR" \
+      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s esgameslist -i "$ROM_DIR" \
+      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s mobygames -i "$ROM_DIR" \
+      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s openretro -i "$ROM_DIR" \
+      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
+    ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s thegamesdb -i "$ROM_DIR" \
+      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
     ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s screenscraper -i "$ROM_DIR" \
       -u "${globals.skyscraperUser}" \
       --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
@@ -107,17 +119,49 @@ let
     # PHASE 2: EXPORT
     ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -i "$ROM_DIR" \
       -g "$OUT_DIR" -o "$OUT_DIR" -a /etc/skyscraper/artwork.xml -e "$LAUNCH_CMD" \
-      -u "${globals.skyscraperUser}" \
       --flags unattend,symlink,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
   '';
 
   scrapeAllScript = pkgs.writeScriptBin "scrape-all-games" ''
     #!/bin/sh
-    EXTRA_FLAGS="$@"
     NEW_BASE="${baseRomDir}"
-    STATE_FILE="$HOME/.skyscraper/.last_rom_dir"
+    
+    echo "--- 1. EXTRACTION PHASE ---"
+    find "$NEW_BASE" -type f \( -name "*.zip" -o -name "*.rar" -o -name "*.7z" \) |
+    while read -r archive; do
+      sys_folder=$(basename "$(dirname "$archive")")
+      dir=$(dirname "$archive")
 
-    # MIGRATION LOGIC
+      echo "Extracting: $(basename "$archive")"
+
+      case "$archive" in
+        *.zip)
+          # -j: junk paths (extracts all files directly into $dir)
+          ${pkgs.unzip}/bin/unzip -o -j "$archive" -d "$dir" && rm "$archive"
+          ;;
+        *.rar)
+          # e: extract to current dir (ignoring paths)
+          cd "$dir" && ${pkgs.unrar}/bin/unrar e -o+ "$archive" && rm "$archive"
+          ;;
+        *.7z)
+          # e: extract (ignoring paths)
+          ${pkgs.p7zip}/bin/7z e -y -o"$dir" "$archive" && rm "$archive"
+          ;;
+      esac
+
+      # If it's a Dolphin system, run conversion after extraction
+      if [ "$sys_folder" = "gc" ] || [ "$sys_folder" = "gamecube" ] || [ "$sys_folder" = "wii" ]; then
+          find "$dir" -type f \( -name "*.iso" -o -name "*.wbfs" \) |
+          while read -r iso; do
+            echo "Converting $iso to RVZ..."
+            ${pkgs.dolphin-emu}/bin/DolphinTool convert --format=rvz --input="$iso" --output="''${iso%.*}.rvz" && \
+            rm "$iso"
+          done
+      fi
+    done
+
+    echo "--- 2. MIGRATION CHECK ---"
+    STATE_FILE="$HOME/.skyscraper/.last_rom_dir"
     if [ -f "$STATE_FILE" ]; then
       OLD_BASE=$(cat "$STATE_FILE")
     else
@@ -126,16 +170,19 @@ let
     fi
 
     if [ "$OLD_BASE" != "$NEW_BASE" ] && [ -d "$OLD_BASE" ]; then
-      echo "--- Directory Change Detected! Moving ROMs... ---"
-      mkdir -p "$(dirname "$NEW_BASE")"
+      echo "Moving ROMs from $OLD_BASE to $NEW_BASE..."
+      mkdir -p "$NEW_BASE"
       mv "$OLD_BASE"/* "$NEW_BASE/" 2>/dev/null
       echo "$NEW_BASE" > "$STATE_FILE"
     fi
 
-    # RUN SCRAPE FOR ALL
-    for sys in ${builtins.concatStringsSep " " platforms}; do
-      ${scrapeScript}/bin/scrape-games "$sys" $EXTRA_FLAGS
+    echo "--- 3. GLOBAL SCRAPE PHASE ---"
+    for sys in ${lib.concatStringsSep " " platforms}; do
+      echo "--- Processing $sys ---"
+      ${scrapeScript}/bin/scrape-games "$sys" "$@"
     done
+    
+    echo "--- DONE! Pegasus library refreshed ---"
   '';
 
 in {
@@ -147,6 +194,11 @@ in {
     libretro.genesis-plus-gx libretro.fbneo libretro.mame libretro.beetle-pce-fast 
     libretro.pcsx2 libretro.flycast libretro.stella
     pegasus-frontend dolphin-emu cemu skyscraper scrapeScript scrapeAllScript
+    atool
+    unrar
+    unzip
+    p7zip
+    ffmpeg-full
   ];
 
   environment.etc."skyscraper/artwork.xml".text = ''<?xml version="1.0" encoding="UTF-8"?>

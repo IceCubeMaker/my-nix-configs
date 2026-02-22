@@ -6,4 +6,6 @@
 
   # Enable the KDE Plasma Desktop Environment.
   services.desktopManager.plasma6.enable = true;
+  services.displayManager.sddm.wayland.enable = true; # Even for X11 sessions, this helps SDDM
+  hardware.enableAllFirmware = true;
 }
