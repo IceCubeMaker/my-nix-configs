@@ -17,7 +17,7 @@
     #### GAMING SETUP ###########################################
     
     extraScrapeFlags = lib.mkOption { type = lib.types.str; default = "--flags unattend,symlink,videos,manuals,fanarts,nobrackets,theinfront,backcovers"; };
-    romDir = lib.mkOption { type = lib.types.str; default = "/home/franz/ROMs"; };
+    romDir = lib.mkOption { type = lib.types.str; default = "/home/franz/Games/ROMs"; };
     screenscraperUser = lib.mkOption { type = lib.types.str; default = "IceCubeMaker:Pokemon"; };
     emulationPlatforms = lib.mkOption { type = lib.types.listOf lib.types.str;
       default = [ "nintendo" ];
