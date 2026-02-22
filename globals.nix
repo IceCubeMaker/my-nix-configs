@@ -19,8 +19,7 @@
     extraScrapeFlags = lib.mkOption { type = lib.types.str; default = "--flags unattend,symlink,videos,manuals,fanarts,nobrackets,theinfront,backcovers"; };
     romDir = lib.mkOption { type = lib.types.str; default = "/home/franz/Games/ROMs"; };
     screenscraperUser = lib.mkOption { type = lib.types.str; default = "IceCubeMaker:Pokemon"; };
-    emulationPlatforms = lib.mkOption { type = lib.types.listOf lib.types.str;
-      default = [ "nintendo" ];
+    emulationPlatforms = lib.mkOption { type = lib.types.listOf lib.types.str; default = [ "nintendo" ];
       description = "List of platforms to enable (e.g., [ 'snes' 'gba' 'ps2' ], or [ 'nintendo' '8-bit' 'handhelds'])";
     };
     
