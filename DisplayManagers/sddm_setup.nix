@@ -1,5 +1,9 @@
-{ pkgs, lib, ... }:
+{ config, pkgs, lib, ... }:
 
+let
+  user = config.global.user;
+  dManager = config.global.default_desktop_environment;
+in
 {
   # Enable SDDM with the Astronaut Theme
   services.displayManager.sddm = {
@@ -21,7 +25,7 @@
 
   # Fix the "defaultSession" warning from your configuration.nix
   # Ensure this is updated in your main configuration.nix as well!
-  services.displayManager.defaultSession = "plasma"; # or "gnome", "hyprland", etc.
+  services.displayManager.defaultSession = dManager; # or "gnome", "hyprland", etc.
 
   # Optional: Theme customization
   # This allows you to pick a specific sub-theme (e.g., "mountain", "ghost", "astronaut")

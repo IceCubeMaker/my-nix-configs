@@ -7,30 +7,30 @@ let
   };
 in {
 
-    environment.systemPackages = with pkgs; [
-
-    ncdu	    # For deleting files and debloating
-    python3 	    # Dependency for many programs
-    kitty 	    # Terminal Emulator
-    ranger	    # CLI File Browser
-    neovim          # CLI Text Editor
-    wget	    # CLI download tool
-    git 	    # Git
-    github-desktop  # Desktop version of Github
-    brightnessctl   # Bright --updateness Controls
-    blueman 	    # For bluetooth
-    revolt-desktop  # Revolt / Stoat
-    nodejs_20       # NodeJS
-    fastfetch
-    pavucontrol
-    ];
-
-    programs.firefox = {
-       enable = true;
-       preferences = {
-          "widget.user-xdg-desktop-portal.file-picker" = 1;
-       };
-    };
+    environment.systemPackages = 
+    [ 
+       config.global.defaultBrowser 
+       config.global.defaultTerminal
+    ] ++ (with pkgs; [
+       ncdu
+       python3
+       ranger
+       neovim
+       wget
+       git
+       github-desktop
+       blueman
+       revolt-desktop
+       nodejs_20
+       fastfetch
+       pavucontrol
+       # download all shells as backup
+       fish
+       zsh
+       bash
+       nushell
+       bashInteractive
+    ]) ++ (lib.optional config.global.isLaptop pkgs.brightnessctl); # only download brightnessctl if it is a laptop
 
     programs.appimage.enable = true;
     programs.appimage.binfmt = true;
@@ -38,9 +38,9 @@ in {
     services.dbus.enable = true;
 
     # enable bluetooth
-    hardware.bluetooth.enable = true;
-    hardware.bluetooth.powerOnBoot = true;
-    services.blueman.enable = true;
+    hardware.bluetooth.enable = config.global.bluetoothEnabled;
+    hardware.bluetooth.powerOnBoot = config.global.bluetoothEnabled;
+    services.blueman.enable = config.global.bluetoothEnabled;
 
     # enable audio
     services.pipewire = {
@@ -51,11 +51,20 @@ in {
        jack.enable = true;
     };
 
-    # enable fish shell
-    programs.fish.enable = true;
+    # set the shell
+    users.users.${config.global.user}.shell = pkgs.${config.global.defaultShell};
+    programs.fish.enable = config.global.defaultShell == "fish";
+    programs.zsh = lib.mkIf (config.global.defaultShell == "zsh") {
+      enable = true;
+      enableCompletion = true;
+      autosuggestions.enable = true;
+    };
+      programs.bash = lib.mkIf (config.global.defaultShell == "bash") {
+      completion.enable = true;
+    };
     
     # set timezone, keyboard and language
-    time.timeZone = "Europe/Oslo";
+    time.timeZone = config.global.timeZone;
     i18n.defaultLocale = "en_US.UTF-8";
 
     # reduce how much space Nix takes

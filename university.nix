@@ -2,11 +2,10 @@
 
 {
   # 1. Install the necessary packages
-  environment.systemPackages = with pkgs; [
-    obsidian
-    syncthing
-    solanum
-    firefox
+  environment.systemPackages = [
+    config.global.defaultBrowser 
+    config.global.pomodoroTimer
+    config.global.noteTakingProgram
+    config.global.syncService
   ];
-
 }

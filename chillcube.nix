@@ -1,9 +1,11 @@
 { config, pkgs, ... }:
 
-{
 
-  globals = import ./globals.nix;
-  user = globals.user;
+let
+  user = config.global.user;
+  baseRomDir = config.global.romDir;
+in
+{
 
   environment.systemPackages = with pkgs; [
     godot_4          # The latest Godot 4 engine
@@ -52,7 +54,7 @@
 
     serviceConfig = {
       Type = "oneshot";
-      User = " ${user}";
+      User = "${user}";
       Group = "users";
       # This is the magic line: it tells systemd to allow full access to /home/user
       ProtectHome = false;

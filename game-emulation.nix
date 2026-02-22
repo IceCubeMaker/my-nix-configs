@@ -1,14 +1,32 @@
 { config, pkgs, lib, ... }:
 
 let
-  # 1. IMPORT GLOBAL VARIABLES
-  globals = import ./globals.nix;
+  user = config.global.user;
+  baseRomDir = config.global.romDir;
   
-  baseRomDir = globals.romDir;
-  user = globals.user;
+  bundles = {
+    "nintendo"     = [ "nes" "snes" "n64" "gc" "wii" "wiiu" "switch" "gb" "gbc" "gba" "3ds" "nds" ];
+    "sony"         = [ "psx" "ps2" "psp" ];
+    "sega"         = [ "megadrive" "saturn" "dreamcast" "gamegear" "mastersystem" ];
+    "dual-screen"  = [ "nds" "3ds" "wiiu" ]; 
+    "handhelds"    = [ "gb" "gbc" "gba" "nds" "3ds" "psp" "wonderswancolor" "gamegear" ];
+    "retro"        = [ "nes" "snes" "gb" "gbc" "megadrive" "atari2600" "pcengine" "mastersystem" ];
+    "disc-based"   = [ "psx" "ps2" "saturn" "dreamcast" "gc" "wii" "wiiu" ];
+    "arcade"       = [ "mame" "neogeo" ];
+    "32-64-bit"    = [ "n64" "psx" "saturn" "nds" ];
+    "16-bit"       = [ "snes" "megadrive" "pcengine" "gbc" "wonderswancolor" ];
+    "8-bit"        = [ "nes" "gb" "mastersystem" "atari2600" "gamegear" ];
+    "high-end"     = [ "gc" "wii" "wiiu" "switch" "ps2" "dreamcast" ];
+  };
+  
+  rawEnabled = config.global.emulationPlatforms;
+  enabled = lib.unique (lib.flatten (map (p: 
+    if bundles ? ${p} then bundles.${p} # If it's a bundle name, expand it
+    else p                             # Otherwise, keep it as a single platform
+  ) rawEnabled));
 
   # Map platforms to their specific launch commands
-  platformMap = {
+  allPlatforms = {
     "snes"             = "retroarch --fullscreen -L /run/current-system/sw/lib/retroarch/cores/snes9x_libretro.so";
     "gba"              = "retroarch --fullscreen -L /run/current-system/sw/lib/retroarch/cores/mgba_libretro.so";
     "nes"              = "retroarch --fullscreen -L /run/current-system/sw/lib/retroarch/cores/nestopia_libretro.so";
@@ -36,8 +54,12 @@ let
     "pcengine"         = "retroarch --fullscreen -L /run/current-system/sw/lib/retroarch/cores/beetle_pce_fast_libretro.so";
     "mastersystem"     = "retroarch --fullscreen -L /run/current-system/sw/lib/retroarch/cores/genesis_plus_gx_libretro.so";
   };
-
+  
+  platformMap = lib.filterAttrs (name: value: lib.elem name enabled) allPlatforms;
   platforms = builtins.attrNames platformMap;
+  isRetroarchUsed = lib.any (p: lib.hasPrefix "retroarch" (allPlatforms.${p} or "")) enabled;
+  
+  isEnabled = p: lib.elem p enabled;
 
   # Directory & Pegasus Generation Rules
   romDirRules = map (p: 
@@ -84,7 +106,7 @@ let
     #!/bin/sh
     PLATFORM=''${1}
     shift
-    EXTRA_FLAGS="$@ ${globals.extraScrapeFlags}"
+    EXTRA_FLAGS="$@ ${config.global.extraScrapeFlags}"
     
     ROM_DIR="${baseRomDir}/$PLATFORM"
     [ "$PLATFORM" = "steam" ] && ROM_DIR="${baseRomDir}/.steam"
@@ -101,20 +123,20 @@ let
     
     # PHASE 1: GATHER
     ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s gamebase -i "$ROM_DIR" \
-      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
+      $EXTRA_FLAGS
     ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s arcadedb -i "$ROM_DIR" \
-      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
+      $EXTRA_FLAGS
     ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s esgameslist -i "$ROM_DIR" \
-      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
+      $EXTRA_FLAGS
     ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s mobygames -i "$ROM_DIR" \
-      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
+     $EXTRA_FLAGS
     ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s openretro -i "$ROM_DIR" \
-      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
+      $EXTRA_FLAGS
     ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s thegamesdb -i "$ROM_DIR" \
-      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
+      $EXTRA_FLAGS
     ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -s screenscraper -i "$ROM_DIR" \
-      -u "${globals.skyscraperUser}" \
-      --flags unattend,videos,manuals,fanarts,nobrackets,theinfront,backcovers $EXTRA_FLAGS
+      -u "${config.global.screenscraperUser}" \
+      $EXTRA_FLAGS
       
     # PHASE 2: EXPORT
     ${pkgs.skyscraper}/bin/Skyscraper -p "$PLATFORM" -f pegasus -i "$ROM_DIR" \
@@ -189,17 +211,42 @@ in {
   imports = [ ./helper_scripts/delete_duplicate_files.nix ];
 
   environment.systemPackages = with pkgs; [
-    retroarch libretro.mgba libretro.desmume libretro.parallel-n64 libretro.snes9x 
-    libretro.nestopia libretro.citra libretro.pcsx_rearmed libretro.ppsspp 
-    libretro.genesis-plus-gx libretro.fbneo libretro.mame libretro.beetle-pce-fast 
-    libretro.pcsx2 libretro.flycast libretro.stella
-    pegasus-frontend dolphin-emu cemu skyscraper scrapeScript scrapeAllScript
-    atool
-    unrar
-    unzip
-    p7zip
+    # --- CORE TOOLS (Always Installed) ---
+    pegasus-frontend 
+    skyscraper 
+    scrapeScript 
+    scrapeAllScript
+    atool 
+    unrar 
+    unzip 
+    p7zip 
     ffmpeg-full
-  ];
+  ] 
+  # --- DYNAMIC EMULATORS (Installed only if in global list) ---
+  
+  # Only install RetroArch if any enabled platform uses it
+  ++ lib.optional isRetroarchUsed retroarch
+  
+  # RetroArch Cores (Only installed if the specific platform is enabled)
+  ++ lib.optional (isEnabled "gba" || isEnabled "gb" || isEnabled "gbc") libretro.mgba
+  ++ lib.optional (isEnabled "nds") libretro.desmume
+  ++ lib.optional (isEnabled "n64") libretro.parallel-n64
+  ++ lib.optional (isEnabled "snes") libretro.snes9x
+  ++ lib.optional (isEnabled "nes") libretro.nestopia
+  ++ lib.optional (isEnabled "3ds") libretro.citra
+  ++ lib.optional (isEnabled "psx") libretro.pcsx_rearmed
+  ++ lib.optional (isEnabled "psp") libretro.ppsspp
+  ++ lib.optional (isEnabled "megadrive" || isEnabled "gamegear" || isEnabled "mastersystem") libretro.genesis-plus-gx
+  ++ lib.optional (isEnabled "neogeo") libretro.fbneo
+  ++ lib.optional (isEnabled "mame") libretro.mame
+  ++ lib.optional (isEnabled "pcengine") libretro.beetle-pce-fast
+  ++ lib.optional (isEnabled "ps2") libretro.pcsx2
+  ++ lib.optional (isEnabled "dreamcast") libretro.flycast
+  ++ lib.optional (isEnabled "atari2600") libretro.stella
+  
+  # Standalone Emulators
+  ++ lib.optional (isEnabled "gc" || isEnabled "wii") dolphin-emu
+  ++ lib.optional (isEnabled "wiiu") cemu;
 
   environment.etc."skyscraper/artwork.xml".text = ''<?xml version="1.0" encoding="UTF-8"?>
     <artwork>
